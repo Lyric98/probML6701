@@ -1,0 +1,153 @@
+---
+title: "spatial_cluster"
+author: "Xicheng Xie"
+date: "2023-07-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(sf)
+library(tigris)
+library(ggplot2)
+library(spdep)
+library(Guerry)
+```
+
+## data loadin
+```{r}
+cco_fips<-readRDS("cco_fips.RDS") %>% 
+  mutate(fips=as.character(fips)) %>% 
+  mutate(fips=str_pad(fips, width = 5,pad = "0"))
+
+
+
+# Load counties shapefile data for the entire US
+options(tigris_class = "sf")
+counties <- tigris::counties(cb = TRUE)
+
+# Combine STATEFP and COUNTYFP to create a full FIPS code
+counties$GEOID <- paste0(counties$STATEFP, counties$COUNTYFP)
+```
+
+## map_1
+```{r}
+# Merge my data with the shapefile data
+merged_data <- left_join(counties, cco_fips, by = c("GEOID" = "fips")) %>% 
+  drop_na()
+
+map_1<-ggplot() +
+  geom_sf(data = merged_data, 
+          aes(fill = Estimate), 
+          color = NA) +
+  scale_fill_viridis_c(option = "viridis") +
+  theme_minimal() +
+  theme(axis.text = element_blank(), 
+        axis.ticks = element_blank(), 
+        panel.grid = element_blank())
+ggsave("map_1.png",map_1)
+
+
+plot(density(merged_data$Estimate))
+```
+
+## spatial clustering
+```{r}
+# Convert to SpatialDataFrame for spdep functions
+merged_data_sp <- as(merged_data, "Spatial")
+
+# Define spatial weights matrix
+nb <- poly2nb(merged_data_sp)
+
+# Identify regions with no neighbors
+no_neighbors <- c(26,1033)
+
+merged_data[no_neighbors,]
+
+# Remove regions with no neighbors from the data and the neighbors list
+merged_data_sp <- merged_data_sp[-no_neighbors, ]
+merged_data_1<-merged_data[-no_neighbors,]
+
+nb <- poly2nb(merged_data_sp)
+# Define spatial weights matrix
+listw <- nb2listw(nb)
+
+# Perform the Local Moran's I test
+hotspot_result <- localmoran(merged_data_sp$Estimate, listw)
+
+saveRDS(hotspot_result, "hotspot_results.rds")
+```
+
+## draw the map2
+```{r}
+merged_data_sp$Ii<-hotspot_result[,"Ii"]
+merged_data_sp$Pr_z<-hotspot_result[,"Pr(z != E(Ii))"]
+merged_data_sp$Z.Ii<-hotspot_result[,"Z.Ii"]
+
+
+merged_data_sf<-st_as_sf(merged_data_sp)
+
+# Set up the color scale for hot spots and cold spots
+color_scale <- c("Hot Spot" = "red",
+                 "Cold Spot" = "blue",
+                 "Not Significant" = "gray")
+
+plot(density(merged_data_sf$Ii))
+
+
+merged_data_sf$x_coordinate <- coords[, "X"]
+merged_data_sf$y_coordinate <- coords[, "Y"]
+
+
+ggplot() +
+  geom_sf(data = merged_data_sf, aes(fill = merged_data_sf$Ii)) +
+  scale_fill_gradient2(midpoint = 0, low = "blue", mid = "gray", high = "red", guide = "legend", na.value = "transparent") +
+  theme_minimal() +
+  labs(title = "Hot Spot Analysis") +
+  geom_text(data = merged_data_sf, aes(label = ifelse(merged_data_sf$Pr_z < 0.05,
+                                                  ifelse(merged_data_sf$Ii > 0, "Hot Spot", "Cold Spot"),
+                                                  "Not Significant")),x=coords[,"X"],y=coords[,"Y"],
+            color = "white", size = 3)
+```
+
+```{r}
+merged_data_sf %>% 
+  ggplot()+
+  geom_sf(aes(fill=merged_data_sf$Ii))+
+  scale_fill_gradient2(midpoint = 0, low = "blue", mid = "gray", high = "red", guide = "legend", na.value = "transparent")
+```
+```{r}
+merged_data_sf %>% 
+  ggplot()+
+  geom_sf(aes(fill=merged_data_sf$Z.Ii))+
+  scale_fill_gradient2(midpoint = 0, low = "blue", mid = "gray", high = "red", guide = "legend", na.value = "transparent")
+```
+
+##
+```{r}
+merged_data_sf %>% 
+  mutate(
+    classification=case_when(
+    Z.Ii>0&Pr_z<=0.05~"Hotspot",
+    Z.Ii<0&Pr_z<=0.05~"Coldspot",
+    TRUE ~ "Insignificant"
+  ),
+  classification=factor(classification,levels=c("Hotspot","Coldspot","Insignificant"))
+  ) %>% 
+  ggplot() +
+  geom_sf(aes(fill = classification)) +
+  scale_fill_manual(values = c("Hotspot" = "red", "Coldspot" = "blue", "Insignificant" = "gray")) +
+  theme_minimal() +
+  labs(fill = "Significance",
+       title = "Hotspot Analysis") 
+```
+
+
+
+
+# using Hotspot Analysis using Getis Ord Gi
+```{r}
+
+```
+
