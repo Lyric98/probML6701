@@ -26,3 +26,11 @@ lat_long <- as.data.frame(st_coordinates(st_centroid(st_geometry(states))))
 lat_long <- cbind(lat_long, states)
 ts_geo <- ts %>% right_join(lat_long, by = c("StateCounty_FIPS" = "GEOID"))
 
+
+saveRDS(ts_geo, file="ts_geo.RDS")
+
+# Read the data from the .RDS file
+df_read <- readRDS("ts_geo.RDS")
+
+# Print the data
+print(df_read)
