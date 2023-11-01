@@ -1,0 +1,418 @@
+---
+title: "ELISA"
+author: "Yanran"
+date: '2023-10-31'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(rstan)
+library(ggpubr)
+library(shinystan)
+library(cowplot)
+library(devtools)
+library(psych)
+library(rstudioapi)
+
+current_path <- getActiveDocumentContext()$path
+setwd(dirname(current_path))
+
+```
+
+
+```{r lab_data}
+dilution_standards_data <- tibble::tribble(
+  ~conc, ~dilution, ~y,
+  2000, 1, c(2.341, 2.47),
+  667, 1 / 2, c(2.308, 2.243),
+  222, 1 / 4, c(1.95, 1.955),
+  74.1, 1 / 8, c(0.975, 0.961),
+  25, 1 / 16, c(0.302, 0.307),
+  8.23, 1 / 32, c(0.111, 0.112),
+  2.74, 1 / 64, c(0.068, 0.07),
+  0, 0, c(0.058, 0.062),
+) %>%
+  mutate(rep = purrr::map(conc, ~ c("a", "b"))) %>%
+  unnest(c(y, rep))
+
+knitr::kable(dilution_standards_data)
+
+data_plot <- dilution_standards_data %>%
+  ggplot(aes(x = conc, y = y, color = rep)) +
+  geom_line(alpha = 0.5, linetype = 2) +
+  geom_point(alpha = 0.8) +
+  scale_x_continuous(expand = expansion(c(0, 0.02)), limits = c(0, NA)) +
+  scale_y_continuous(expand = expansion(c(0, 0.02)), limits = c(0, NA)) +
+  scale_color_brewer(type = "qual", palette = "Set1") +
+  theme(
+    legend.position = c(0.8, 0.2),
+    legend.background = element_blank()
+  ) +
+  labs(
+    x = "concentration",
+    y = "y",
+    title = "Serial dilution standard curve",
+    color = "replicate"
+  )
+
+data_plot
+
+
+```
+
+```{r lab_data plate 1}
+dilution_standards_data <- tibble::tribble(
+  ~conc, ~dilution, ~y,
+  2000, 1, c(2.341, 2.47),
+  667, 1 / 2, c(2.308, 2.243),
+  222, 1 / 4, c(1.95, 1.955),
+  74.1, 1 / 8, c(0.975, 0.961),
+  25, 1 / 16, c(0.302, 0.307),
+  8.23, 1 / 32, c(0.111, 0.112),
+  2.74, 1 / 64, c(0.068, 0.07),
+  0, 0, c(0.058, 0.062),
+) %>%
+  mutate(rep = purrr::map(conc, ~ c("a", "b"))) %>%
+  unnest(c(y, rep))
+
+knitr::kable(dilution_standards_data)
+
+data_plot <- dilution_standards_data %>%
+  ggplot(aes(x = conc, y = y, color = rep)) +
+  geom_line(alpha = 0.5, linetype = 2) +
+  geom_point(alpha = 0.8) +
+  scale_x_continuous(expand = expansion(c(0, 0.02)), limits = c(0, NA)) +
+  scale_y_continuous(expand = expansion(c(0, 0.02)), limits = c(0, NA)) +
+  scale_color_brewer(type = "qual", palette = "Set1") +
+  theme(
+    legend.position = c(0.8, 0.2),
+    legend.background = element_blank()
+  ) +
+  labs(
+    x = "concentration",
+    y = "y",
+    title = "Serial dilution standard curve",
+    color = "replicate"
+  )
+
+data_plot
+
+
+```
+
+
+
+
+
+
+```{r}
+library(tidyverse)
+
+# Prepare the data
+dilution_standards_data <- tibble::tribble(
+  ~conc, ~dilution, ~y,
+  2000, 1, c(2.341, 2.47),
+  667, 1 / 2, c(2.308, 2.243),
+  222, 1 / 4, c(1.95, 1.955),
+  74.1, 1 / 8, c(0.975, 0.961),
+  25, 1 / 16, c(0.302, 0.307),
+  8.23, 1 / 32, c(0.111, 0.112),
+  2.74, 1 / 64, c(0.068, 0.07),
+  0, 0, c(0.058, 0.062)
+) %>%
+  mutate(rep = purrr::map(conc, ~ c("a", "b"))) %>%
+  unnest(c(y, rep))
+
+# Gibbs Sampler for Gaussian Mixture Model
+gibbs_gmm <- function(data, K, iter){
+  n <- length(data)
+  z <- sample(1:K, n, replace = TRUE)
+  mu <- rnorm(K, mean(data), sd(data))
+  sigma <- rep(sd(data), K)
+  logLikelihood <- numeric(iter)
+  
+  for (t in 1:iter){
+    # Sample z
+    for (i in 1:n){
+      p_z <- numeric(K)
+      for (k in 1:K){
+        p_z[k] <- dnorm(data[i], mean = mu[k], sd = sigma[k])
+      }
+      p_z <- p_z / sum(p_z)
+      z[i] <- sample(1:K, 1, prob = p_z)
+    }
+    
+    # Sample mu and sigma
+    for (k in 1:K){
+      data_k <- data[z == k]
+      n_k <- length(data_k)
+      mu[k] <- rnorm(1, mean(data_k), sqrt(sigma[k]^2/n_k))
+      sigma[k] <- sqrt(1 / rgamma(1, shape = n_k/2, rate = sum((data_k - mu[k])^2)/2))
+    }
+    
+    # Compute log likelihood
+    logLikelihood[t] <- sum(sapply(1:n, function(i) log(sum(sapply(1:K, function(k) dnorm(data[i], mean = mu[k], sd = sigma[k]))))))
+  }
+  
+  return(list(z = z, mu = mu, sigma = sigma, logLikelihood = logLikelihood))
+}
+
+# Run the Gibbs sampler
+K <- 2   # Number of clusters
+iter <- 1000   # Number of iterations
+results <- gibbs_gmm(dilution_standards_data$y, K, iter)
+
+# Plot log likelihood
+plot(results$logLikelihood, type = 'l', col = 'blue', ylab = 'Log Likelihood', xlab = 'Iteration')
+
+# Add the estimated cluster assignments to the data
+dilution_standards_data$cluster <- factor(results$z)
+
+# Plot the data in 2D space colored by cluster assignment
+ggplot(dilution_standards_data, aes(x = conc, y = y, color = cluster)) +
+  geom_point(size = 2) +
+  labs(title = 'Gaussian Mixture Model Clustering',
+       x = 'Concentration',
+       y = 'Response',
+       color = 'Cluster') +
+  theme_minimal()
+
+
+```
+
+
+
+
+```{r data}
+set.seed(70)
+sort(rexp(15, rate  =0.1))
+set.seed(9)
+sort(rexp(5, rate  =0.1))
+
+h_function_4para <- function(x, beta_1, beta_2, beta_3, beta_4) {
+  beta_1 + beta_2/(1 + (x/beta_3)^(-beta_4))
+}
+number_of_iteration <- 200
+beta_1 <- 4
+beta_2 <- 18000
+beta_3 <- 8
+beta_4 <- 1.5
+sigma_y <- 0.1
+standard_initial_concentration <- 125
+###15 uncontaminated samples, 5 contaminated samples
+number_of_unknown_samples <- 20
+for (m in 1:number_of_iteration){
+  set.seed(m*10) # Need to change to random seed
+  #Simulate Standards data
+  d_standard = c(0, 1, 1/2, 1/4, 1/8, 1/16, 1/32, 1/64, 1/128, 1/256, 1/512, 1/1024, 1/2048,
+                 0, 1, 1/2, 1/4, 1/8, 1/16, 1/32, 1/64, 1/128, 1/256, 1/512, 1/1024, 1/2048)
+  y_standard <- c()
+  for (i in 1:length(d_standard)){
+    y_standard[i] <- rnorm(1, mean = log(h_function_4para(standard_initial_concentration*d_standard[i],
+                                                          beta_1, 
+                                                          beta_2,
+                                                          beta_3,
+                                                          beta_4)), sd = sigma_y)
+  }
+  #Simulate Unknown data 
+  d_unknown = c(1/10, 1/100, 1/10000)
+  unknown_concentration <- c(2.142117, 2.173073, 3.067431, 5.303637, 5.715181, 5.759132, 6.891102, 8.137805, 10.642271, 12.283897, 
+                             19.371679, 20.043561, 23.413117, 28.621908, 32.093232)
+  y_unknown <- matrix(NA, nrow = length(unknown_concentration), ncol = length(d_unknown))
+  for (i in 1:length(unknown_concentration)){
+    for(j in 1:length(d_unknown)){
+      y_unknown[i,j] <- rnorm(1, mean = log(h_function_4para(unknown_concentration[i]*d_unknown[j],
+                                                             beta_1, 
+                                                             beta_2,
+                                                             beta_3,
+                                                             beta_4)), sd = sigma_y)
+    }
+  }
+  unknown_concentration_contaminated <- c(3.373859, 11.704103, 12.557783, 14.030920, 14.792289)
+  number_of_contaminated_samples <- 5
+  delta_sigma_contaminated_more <- 1
+  delta_beta_contaminated_more <- 1
+ y_unknown_contaminated_more <- matrix(NA, nrow = length(unknown_concentration_contaminated), ncol = length(d_unknown))
+  for (i in 1:number_of_contaminated_samples){
+    for(j in 1:length(d_unknown)){
+ y_unknown_contaminated_more[i,j] <- rnorm(1, mean = log(h_function_4para(unknown_concentration_contaminated[i]*d_unknown[j],beta_1,beta_2*exp(delta_beta_contaminated_more),beta_3,beta_4)), sd=sigma_y*exp(delta_sigma_contaminated_more))
+    }
+  }
+
+ 
+###severe contamination data
+combined_data_more_comtamination <- data.frame(
+    id <- c(rep("standard", 26), rep("unknown_1", 3), rep("unknown_2", 3),rep("unknown_3", 3), rep("unknown_4", 3), rep("unknown_5", 3),
+            rep("unknown_6", 3), rep("unknown_7", 3),rep("unknown_8", 3), rep("unknown_9", 3), rep("unknown_10", 3),
+            rep("unknown_11", 3), rep("unknown_12", 3),rep("unknown_13", 3), rep("unknown_14", 3), rep("unknown_15", 3),
+            rep("unknown_1_contaminated", 3), rep("unknown_2_contaminated", 3),rep("unknown_3_contaminated", 3), rep("unknown_4_contaminated", 3), rep("unknown_5_contaminated", 3)),
+    dilution <- c(0, 1, 1/2, 1/4, 1/8, 1/16, 1/32, 1/64, 1/128, 1/256, 1/512, 1/1024, 1/2048,
+                  0, 1, 1/2, 1/4, 1/8, 1/16, 1/32, 1/64, 1/128, 1/256, 1/512, 1/1024, 1/2048,
+                  rep(c(1/10, 1/100, 1/10000), number_of_unknown_samples)),
+    y <- c(y_standard, y_unknown[1,],y_unknown[2,],y_unknown[3,],y_unknown[4,],y_unknown[5,],
+           y_unknown[6,],y_unknown[7,],y_unknown[8,],y_unknown[9,],y_unknown[10,],
+           y_unknown[11,],y_unknown[12,],y_unknown[13,],y_unknown[14,],y_unknown[15,],
+           y_unknown_contaminated_more[1,],y_unknown_contaminated_more[2,],
+           y_unknown_contaminated_more[3,],y_unknown_contaminated_more[4,],
+           y_unknown_contaminated_more[5,])
+  )
+  colnames(combined_data_more_comtamination) <- c("id", "dilution", "y")
+  
+#Severe, our
+  simulated_data_more <- list(
+    N_stand_sample = 1,
+    N_unknown_sample = number_of_unknown_samples,
+    N_standard = 1*26,
+    N_unknown = number_of_unknown_samples*3,
+    y_standard = y_standard,
+    d_standard = c(0, 1, 1/2, 1/4, 1/8, 1/16, 1/32, 1/64, 1/128, 1/256, 1/512, 1/1024, 1/2048,
+                   0, 1, 1/2, 1/4, 1/8, 1/16, 1/32, 1/64, 1/128, 1/256, 1/512, 1/1024, 1/2048),
+    ind_standard = c(rep(1,26)),
+    y_unknown = c(y_unknown[1,],y_unknown[2,],y_unknown[3,],y_unknown[4,],y_unknown[5,],
+                  y_unknown[6,],y_unknown[7,],y_unknown[8,],y_unknown[9,],y_unknown[10,],
+                  y_unknown[11,],y_unknown[12,],y_unknown[13,],y_unknown[14,],y_unknown[15,],
+                  y_unknown_contaminated_more[1,],y_unknown_contaminated_more[2,],
+                  y_unknown_contaminated_more[3,],y_unknown_contaminated_more[4,],
+                  y_unknown_contaminated_more[5,]),
+    d_unknown = c(rep(c(1/10, 1/100, 1/10000), number_of_unknown_samples)),
+    ind_unknown = c(rep(1:(number_of_unknown_samples),each = 3)),
+    start_index = seq(1, 3*(number_of_unknown_samples - 1) + 1, by=3),
+    end_index = seq(3, 3*(number_of_unknown_samples - 1) + 3, by=3),
+    theta_0 = as.array(standard_initial_concentration)) 
+  initfun_4para <- function(...) {
+    list(beta =c(min(y_standard),max(y_standard) - min(y_standard), 1, 1))
+  }
+}
+ 
+```
+
+
+```{r}
+
+simulated_data_2004_more <- list(
+    N_stand_sample = 1,
+    N_unknown_sample = number_of_unknown_samples,
+    N_standard = 1*26,
+    N_unknown = number_of_unknown_samples*3,
+    y_standard = exp(y_standard),
+    d_standard = c(0, 1, 1/2, 1/4, 1/8, 1/16, 1/32, 1/64, 1/128, 1/256, 1/512, 1/1024, 1/2048,
+                   0, 1, 1/2, 1/4, 1/8, 1/16, 1/32, 1/64, 1/128, 1/256, 1/512, 1/1024, 1/2048),
+    ind_standard = c(rep(1,26)),
+    y_unknown = exp(c(y_unknown[1,],y_unknown[2,],y_unknown[3,],y_unknown[4,],y_unknown[5,],
+                      y_unknown[6,],y_unknown[7,],y_unknown[8,],y_unknown[9,],y_unknown[10,],
+                      y_unknown[11,],y_unknown[12,],y_unknown[13,],y_unknown[14,],y_unknown[15,],
+                      y_unknown_contaminated_more[1,],y_unknown_contaminated_more[2,],
+                      y_unknown_contaminated_more[3,],y_unknown_contaminated_more[4,],
+                      y_unknown_contaminated_more[5,])),
+    d_unknown = c(rep(c(1/10, 1/100, 1/10000), number_of_unknown_samples)),
+    ind_unknown = c(rep(1:(number_of_unknown_samples),each = 3)),
+    start_index = seq(1, 3*(number_of_unknown_samples - 1) + 1, by=3),
+    end_index = seq(3, 3*(number_of_unknown_samples - 1) + 3, by=3),
+    A = mean(exp(y_standard)),
+    theta_0 = as.array(standard_initial_concentration)) 
+  initfun_4para <- function(...) {
+    list(beta =c(min(y_standard),max(y_standard) - min(y_standard), 1, 1))
+  }
+  
+
+  
+```
+
+
+
+
+
+
+
+```{r EDA}
+summary(combined_data_more_comtamination)
+hist(combined_data_more_comtamination$y, main="Histogram of y", xlab="y")
+boxplot(y ~ id, data=combined_data_more_comtamination, main="Boxplot of y by ID", xlab="ID", ylab="y")
+## ggplot the scatter plot group by ID
+ggplot(combined_data_more_comtamination, aes(x=dilution, y=y, color=id)) + geom_point() +geom_line()#+ geom_smooth(method=lm)
+
+```
+
+
+```{r}
+
+library(tibble)
+library(dplyr)
+library(ggplot2)
+
+# Define the data
+dilution_standards_data <- tibble::tribble(
+  ~conc, ~dilution, ~y,
+  2000, 1, c(2.341, 2.47),
+  667, 1 / 2, c(2.308, 2.243),
+  222, 1 / 4, c(1.95, 1.955),
+  74.1, 1 / 8, c(0.975, 0.961),
+  25, 1 / 16, c(0.302, 0.307),
+  8.23, 1 / 32, c(0.111, 0.112),
+  2.74, 1 / 64, c(0.068, 0.07),
+  0, 0, c(0.058, 0.062),
+) %>%
+  mutate(rep = purrr::map(conc, ~ c("a", "b"))) %>%
+  unnest(c(y, rep))
+
+
+# Variational Inference
+n_iter <- 1000
+elbo_values <- numeric(n_iter)
+
+# Initialize variational parameters
+phi <- matrix(0.5, nrow = nrow(dilution_standards_data), ncol = 2) # Cluster responsibilities
+mu <- runif(2, min(dilution_standards_data$y), max(dilution_standards_data$y)) # Means
+sigma_sq <- rep(1, 2) # Variances
+
+for (iter in 1:n_iter) {
+  # E-step: Update variational distribution q(z)
+  for (i in 1:nrow(dilution_standards_data)) {
+    for (k in 1:2) {
+      log_rho <- log(0.5) + dnorm(dilution_standards_data$y[i], mean = mu[k], sd = sqrt(sigma_sq[k]), log = TRUE)
+      phi[i, k] <- exp(log_rho)
+    }
+    phi[i, ] <- phi[i, ] / sum(phi[i, ])
+  }
+  
+  # M-step: Update variational parameters mu, sigma_sq
+  for (k in 1:2) {
+    mu[k] <- sum(phi[, k] * dilution_standards_data$y) / sum(phi[, k])
+    sigma_sq[k] <- sum(phi[, k] * (dilution_standards_data$y - mu[k])^2) / sum(phi[, k])
+  }
+  
+  # Compute ELBO
+  elbo <- 0
+  for (i in 1:nrow(dilution_standards_data)) {
+    for (k in 1:2) {
+      elbo <- elbo + phi[i, k] * (log(0.5) + dnorm(dilution_standards_data$y[i], mean = mu[k], sd = sqrt(sigma_sq[k]), log = TRUE) - log(phi[i, k]))
+    }
+  }
+  elbo_values[iter] <- elbo
+  
+  # Check for convergence
+  if (iter > 1 && abs(elbo_values[iter] - elbo_values[iter - 1]) < 1e-6) {
+    break
+  }
+}
+
+# Plot ELBO
+ggplot(data.frame(Iteration = 1:n_iter, ELBO = elbo_values), aes(x = Iteration, y = ELBO)) +
+  geom_line() +
+  theme_minimal() +
+  labs(title = "Convergence of Variational Inference", y = "ELBO", x = "Iteration")
+
+# You can perform further model checking by comparing predictions on held-out data
+
+
+# read csv
+dilution <- read.csv("reconstructed.csv", header = FALSE)
+# store in a long vector
+dilution <- as.vector(t(dilution))
+hist(dilution, breaks = 30)
+
+```
+
+
+
