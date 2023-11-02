@@ -138,3 +138,4 @@ for (m in 1:number_of_iteration){
   }
   simulated_model_2004_more <- stan(file = "method_2004.stan", data = simulated_data_2004_more, init = initfun_4para)
 }
+

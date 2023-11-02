@@ -357,6 +357,8 @@ dilution_standards_data <- tibble::tribble(
   unnest(c(y, rep))
 
 
+
+
 # Variational Inference
 n_iter <- 1000
 elbo_values <- numeric(n_iter)
@@ -406,12 +408,16 @@ ggplot(data.frame(Iteration = 1:n_iter, ELBO = elbo_values), aes(x = Iteration, 
 # You can perform further model checking by comparing predictions on held-out data
 
 
-# read csv
-dilution <- read.csv("reconstructed.csv", header = FALSE)
-# store in a long vector
-dilution <- as.vector(t(dilution))
-hist(dilution, breaks = 30)
-
+# # read csv
+# dilution <- read.csv("reconstructed.csv", header = FALSE)
+# # store in a long vector
+# dilution <- as.vector(t(dilution))
+# hist(dilution, breaks = 30)
+# # use ggplot to hist
+# ggplot(data.frame(dilution), aes(x = dilution)) +
+#   geom_histogram(binwidth = 0.125, color = "black", fill = "light blue") +
+#   theme_minimal() +
+#   labs(title = "Histogram of signal response", y = "Frequency", x = "Signal response")
 ```
 
 
