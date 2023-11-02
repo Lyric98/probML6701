@@ -78,6 +78,116 @@ ggplot(data.frame(dilution), aes(x = dilution)) +
 ```
 
 
+```{r gibbs}
+# Gibbs Sampler for Gaussian Mixture Model
+gibbs_gmm <- function(data, K, iter){
+  n <- length(data)
+  z <- sample(1:K, n, replace = TRUE)
+  mu <- rnorm(K, mean(data), sd(data))
+  sigma <- rep(sd(data), K)
+  logLikelihood <- numeric(iter)
+  
+  for (t in 1:iter){
+    # Sample z
+    for (i in 1:n){
+      p_z <- numeric(K)
+      for (k in 1:K){
+        p_z[k] <- dnorm(data[i], mean = mu[k], sd = sigma[k])
+      }
+      p_z <- p_z / sum(p_z)
+      z[i] <- sample(1:K, 1, prob = p_z)
+    }
+    
+    # Sample mu and sigma
+    for (k in 1:K){
+      data_k <- data[z == k]
+      n_k <- length(data_k)
+      mu[k] <- rnorm(1, mean(data_k), sqrt(sigma[k]^2/n_k))
+      sigma[k] <- sqrt(1 / rgamma(1, shape = n_k/2, rate = sum((data_k - mu[k])^2)/2))
+    }
+    
+    # Compute log likelihood
+    logLikelihood[t] <- sum(sapply(1:n, function(i) log(sum(sapply(1:K, function(k) dnorm(data[i], mean = mu[k], sd = sigma[k]))))))
+  }
+  
+  return(list(z = z, mu = mu, sigma = sigma, logLikelihood = logLikelihood))
+}
+
+K <- 2   # Number of clusters
+iter <- 1000   # Number of iterations
+results <- gibbs_gmm(dilution, K, iter)
+
+```
+
+
+```{r check convergence}
+ggplot(data.frame(results$logLikelihood), aes(x = 1:length(results$logLikelihood), y = results$logLikelihood)) +
+  geom_line(color = "blue") +
+  theme_minimal() +
+  labs(y = "Log Joint Probability", x = "Iteration")
+
+
+# dilution$cluster <- factor(results$z)
+# 
+# ggplot(dilution, aes(x = conc, y = y, color = cluster)) +
+#   geom_point(size = 2) +
+#   labs(title = 'Gaussian Mixture Model Clustering',
+#        x = 'Concentration',
+#        y = 'Response',
+#        color = 'Cluster') +
+#   theme_minimal()
+
+```
+
+
+
+
+```{r VI}
+# Variational Inference
+n_iter <- 1000
+elbo_values <- numeric(n_iter)
+
+# Initialize variational parameters
+phi <- matrix(0.5, nrow = nrow(dilution_standards_data), ncol = 2) # Cluster responsibilities
+mu <- runif(2, min(dilution_standards_data$y), max(dilution_standards_data$y)) # Means
+sigma_sq <- rep(1, 2) # Variances
+
+for (iter in 1:n_iter) {
+  # E-step: Update variational distribution q(z)
+  for (i in 1:nrow(dilution_standards_data)) {
+    for (k in 1:2) {
+      log_rho <- log(0.5) + dnorm(dilution_standards_data$y[i], mean = mu[k], sd = sqrt(sigma_sq[k]), log = TRUE)
+      phi[i, k] <- exp(log_rho)
+    }
+    phi[i, ] <- phi[i, ] / sum(phi[i, ])
+  }
+  
+  # M-step: Update variational parameters mu, sigma_sq
+  for (k in 1:2) {
+    mu[k] <- sum(phi[, k] * dilution_standards_data$y) / sum(phi[, k])
+    sigma_sq[k] <- sum(phi[, k] * (dilution_standards_data$y - mu[k])^2) / sum(phi[, k])
+  }
+  
+  # Compute ELBO
+  elbo <- 0
+  for (i in 1:nrow(dilution_standards_data)) {
+    for (k in 1:2) {
+      elbo <- elbo + phi[i, k] * (log(0.5) + dnorm(dilution_standards_data$y[i], mean = mu[k], sd = sqrt(sigma_sq[k]), log = TRUE) - log(phi[i, k]))
+    }
+  }
+  elbo_values[iter] <- elbo
+  
+  # Check for convergence
+  if (iter > 1 && abs(elbo_values[iter] - elbo_values[iter - 1]) < 1e-6) {
+    break
+  }
+}
+
+# Plot ELBO
+ggplot(data.frame(Iteration = 1:n_iter, ELBO = elbo_values), aes(x = Iteration, y = ELBO)) +
+  geom_line() + theme_minimal() + labs(y = "ELBO", x = "Iteration")
+```
+
 
 
 
