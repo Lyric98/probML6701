@@ -1,0 +1,88 @@
+---
+title: "hw2"
+author: "Yanran"
+date: '2023-11-02'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(rstan)
+library(ggpubr)
+library(shinystan)
+library(cowplot)
+library(devtools)
+library(psych)
+library(rstudioapi)
+
+current_path <- getActiveDocumentContext()$path
+setwd(dirname(current_path))
+
+```
+
+
+```{r lab_data}
+dilution_standards_data <- tibble::tribble(
+  ~conc, ~dilution, ~y,
+  2000, 1, c(2.341, 2.47),
+  667, 1 / 2, c(2.308, 2.243),
+  222, 1 / 4, c(1.95, 1.955),
+  74.1, 1 / 8, c(0.975, 0.961),
+  25, 1 / 16, c(0.302, 0.307),
+  8.23, 1 / 32, c(0.111, 0.112),
+  2.74, 1 / 64, c(0.068, 0.07),
+  0, 0, c(0.058, 0.062),
+) %>%
+  mutate(rep = purrr::map(conc, ~ c("a", "b"))) %>%
+  unnest(c(y, rep))
+
+knitr::kable(dilution_standards_data)
+
+data_plot <- dilution_standards_data %>%
+  ggplot(aes(x = conc, y = y, color = rep)) +
+  geom_line(alpha = 0.5, linetype = 2) +
+  geom_point(alpha = 0.8) +
+  scale_x_continuous(expand = expansion(c(0, 0.02)), limits = c(0, NA)) +
+  scale_y_continuous(expand = expansion(c(0, 0.02)), limits = c(0, NA)) +
+  scale_color_brewer(type = "qual", palette = "Set1") +
+  theme(
+    legend.position = c(0.8, 0.2),
+    legend.background = element_blank()
+  ) +
+  labs(
+    x = "concentration",
+    y = "y",
+    title = "",
+    color = "replicate"
+  )
+
+data_plot
+
+
+```
+
+
+
+
+```{r }
+dilution <- read.csv("reconstructed.csv", header = FALSE)
+# store in a long vector
+dilution <- as.vector(t(dilution))
+# hist(dilution, breaks = 30)
+
+ggplot(data.frame(dilution), aes(x = dilution)) +
+  geom_histogram(binwidth = 0.125, color = "black", fill = "light blue") +
+  theme_minimal() +
+  labs(title = "Histogram of signal response", y = "Frequency", x = "Signal response")
+
+```
+
+
+
+
+
+
+
+
+
+
