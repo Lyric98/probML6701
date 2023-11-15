@@ -1,0 +1,22 @@
+---
+title: "hw3"
+author: "Yanran"
+date: '2023-11-14'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(rstan)
+library(ggpubr)
+library(shinystan)
+library(cowplot)
+library(devtools)
+library(psych)
+library(rstudioapi)
+
+current_path <- getActiveDocumentContext()$path
+setwd(dirname(current_path))
+
+```
+

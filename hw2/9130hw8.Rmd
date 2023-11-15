@@ -1,0 +1,70 @@
+---
+title: "9130hw8"
+author: "Yanran"
+date: '2023-11-07'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(rstan)
+library(ggpubr)
+library(shinystan)
+library(cowplot)
+library(devtools)
+library(psych)
+library(rstudioapi)
+
+current_path <- getActiveDocumentContext()$path
+setwd(dirname(current_path))
+
+```
+
+
+```{r}
+n <- 8
+x <- 1:n
+beta0 <- 2
+beta1 <- 3
+sigma2 <- 1 # Assuming some value for the true variance of errors
+
+biases_beta0 <- numeric(length = 7)
+biases_beta1 <- numeric(length = 7)
+biases_sigma2 <- numeric(length = 7)
+
+for (beta2 in -2:4) {
+  y <- beta0 + beta1 * x + beta2 * x^2 + rnorm(n, mean = 0, sd = sqrt(sigma2))
+  fit <- lm(y ~ x)
+  
+  biases_beta0[beta2 + 3] <- coef(fit)[1] - beta0
+  biases_beta1[beta2 + 3] <- coef(fit)[2] - beta1
+  e_hat <- residuals(fit)
+  sigma2_hat <- sum(e_hat^2) / (n - 2)
+  biases_sigma2[beta2 + 3] <- sigma2_hat - sigma2
+}
+
+# a. Compute the bias in the least squares estimators, beta_0, beta_1
+print("The bias in the least squares estimators, beta_0 are: ")
+print(biases_beta0)
+print("The bias in the least squares estimators, beta_1 are: ")
+print(biases_beta1)
+
+# b. Compute the bias in the least squares estimator of sigma^2
+print("The bias in the least squares estimator of sigma^2 are: ")
+print(biases_sigma2)
+# ggplot above
+df <- data.frame(bias = c(biases_beta0, biases_beta1, biases_sigma2),
+                 parameter = rep(c("beta0", "beta1", "sigma2"), each = 7),
+                 beta2 = rep(-2:4, 3))
+plot <- ggplot(df, aes(x = beta2, y = bias, color = parameter)) +
+  geom_point() +
+  geom_line() +
+  theme_bw() +
+  labs(x = "beta2", y = "bias")
+
+plot
+```
+
+
+
+

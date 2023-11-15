@@ -12,6 +12,10 @@ library(lubridate)
 library(sf)
 
 ts <- readRDS("ts_heatindex_heatwarnings_byFIPS_2006_2016.rds")
+
+heat_us <- readRDS("hotspot_results.RDS")
+
+
 ts$weekday <- wday(ts$Date, week_start=1)
 ts$weekday <- ifelse(ts$weekday<6, 1, 0)
 states <- st_read("cb_2013_us_county_500k/cb_2013_us_county_500k.shp")
