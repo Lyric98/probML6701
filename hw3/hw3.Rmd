@@ -14,6 +14,9 @@ library(cowplot)
 library(devtools)
 library(psych)
 library(rstudioapi)
+library (car)
+library(brms)
+library(pscl)
 
 current_path <- getActiveDocumentContext()$path
 setwd(dirname(current_path))
@@ -52,10 +55,10 @@ brfss_county_interpolated <- read_csv("./data/confounder/brfss_county_interpolat
 census_county_interpolated <- read_csv("./data/confounder/census_county_interpolated.csv")
 
 # merge the two data sets
-ts_wconf <- ts %>% right_join(county_pm25, by = c("StateCounty_FIPS" = "fips" , "year" = "year")) %>%
-  right_join(temp_seasonal_county, by = c("StateCounty_FIPS" = "fips" , "year" = "year")) %>%
-  right_join(brfss_county_interpolated, by = c("StateCounty_FIPS" = "fips" , "year" = "year")) %>%
-  right_join(census_county_interpolated, by = c("StateCounty_FIPS" = "fips" , "year" = "year")) %>%
+ts_wconf <- ts %>% full_join(county_pm25, by = c("StateCounty_FIPS" = "fips" , "year" = "year")) %>%
+  full_join(temp_seasonal_county, by = c("StateCounty_FIPS" = "fips" , "year" = "year")) %>%
+  full_join(brfss_county_interpolated, by = c("StateCounty_FIPS" = "fips" , "year" = "year")) %>%
+  full_join(census_county_interpolated, by = c("StateCounty_FIPS" = "fips" , "year" = "year")) %>%
   mutate(weekday = wday(Date, week_start=1),
          weekday = ifelse(weekday<6, 1, 0))
 
@@ -63,14 +66,35 @@ ts_wconf <- ts %>% right_join(county_pm25, by = c("StateCounty_FIPS" = "fips" , 
 View(head(ts_wconf,20))
 ```
 
+```{r save data}
+
+
+#saveRDS(ts_wconf, file="ts_wconf.RDS")
+
+# Read the data from the .RDS file
+df_read <- readRDS("ts_wconf.RDS")
+
+# Print the data
+#print(df_read)
+ts_2007 <- df_read %>% filter(year == 2007)
+
+# NA
+ts_2007 <- ts_2007 %>% mutate(HImaxF_PopW = ifelse(is.na(HImaxF_PopW), 0, HImaxF_PopW),
+                              pm25 = ifelse(is.na(pm25), 0, pm25),
+                              alert = ifelse(is.na(alert), 0, alert))
+
+# select columns
+ts_2007 <- ts_2007 %>% select(alert, HImaxF_PopW, pm25, mean_bmi, weekday)
+
+# NA
+ts_2007 <- ts_2007 %>% mutate(mean_bmi = ifelse(is.na(mean_bmi), 0, mean_bmi)) %>% 
+  mutate(weekday = ifelse(is.na(weekday), 0, weekday))
 
 
 
 
 
-
-
-
+```
 
 
 
