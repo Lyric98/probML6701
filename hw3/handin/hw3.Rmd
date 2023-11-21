@@ -23,24 +23,6 @@ setwd(dirname(current_path))
 
 ```
 
-```{r extract datd}
-
-############################################################################
-## Example 2: Download and import the transport file through R             #
-############################################################################
-
-# Download NHANES 2015-2016 to temporary file    
-# download.file("https://wwwn.cdc.gov/nchs/nhanes/2015-2016/DEMO_I.XPT", tf <- tempfile(), mode="wb")
-# 
-# # Create Data Frame From Temporary File
-# DEMO_I3 <- foreign::read.xport(tf)
-#     
-# # save as an R data frame
-# # TutorialUser: update the file path here to a directory where you want to save the data frame 
-# saveRDS(DEMO_I3, file="C:\\NHANES\\DATA\\DEMO_I.rds")    
-```
-
-
 
 ```{r load data}
 ts <- readRDS("./data/ts_heatindex_heatwarnings_byFIPS_2006_2016.rds")
