@@ -32,8 +32,9 @@ jupyter notebook 转换成 python script
 jupyter nbconvert --to script
 ```
 vscode 选中多行缩进
-缩进： tab
-取消缩进： shift + tab
+
+缩进： ```tab```
+取消缩进： ```shift + tab```
 
 
 ## Linux 相关
