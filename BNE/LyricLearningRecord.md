@@ -80,3 +80,20 @@ which python #确保运行的是python3
 python run_base.py --data_training bayesian_optimization --model mlp_fsvi --architecture fc_100_100 --activation tanh --learning_rate 1e-3 --optimizer adam --batch_size 0 --prior_mean 0 --prior_cov 4 --prior_cov_offset 1 --prior_type bnn_induced --n_inducing_inputs 100 --n_marginals 1 --inducing_inputs_bound -10 10 --inducing_input_type uniform_rand_tdvi --kl_scale none --n_samples 5 --n_samples_eval 100 --logging_frequency 1000 --seed 0 --debug --save --save_path tmp --feature_map_jacobian --feature_map_type learned_grad --grad_flow_jacobian --full_cov --prior_mean_init --noise_std 0.01 --epochs 10000
 ```
 
+### Ginsberg 指令
+```
+conda activate diva
+fish
+squeue -u $USER
+sbatch train.sh
+bash srun_gpu.sh # request interactive gpu for debug
+python sr.py -p train -c config/sr_wave_64_512CBIS.json -enable_wandb -log_wandb_ckpt -log_eval    #在interactive下call python
+
+
+
+```
+
+
+
+
+
