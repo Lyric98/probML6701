@@ -88,10 +88,57 @@ squeue -u $USER
 sbatch train.sh
 bash srun_gpu.sh # request interactive gpu for debug
 python sr.py -p train -c config/sr_wave_64_512CBIS.json -enable_wandb -log_wandb_ckpt -log_eval    #在interactive下call python
+```
 
-
+# Debug必备
+## Ginsburg
+打断点 会在断点的地方停下
+```
+breakpoint()
+```
+停了之后可以查看各个变量名 e.g.
+```
+opt
+```
+如果看不清
+```
+(Pdb) opt['dataset']
+(Pdb) from pprint import pprint
+(Pdb) pprint(opt)
+```
+examples:
+```
+logger
+```
+输出： <Logger base (INFO)>
+```
+logger.name
+```
+'base'
+```
+type(opt)
+```
+<class 'core.logger.NoneDict'>
 
 ```
+dir(opt)
+```
+['__class__', '__class_getitem__', '__contains__', '__delattr__', '__delitem__', '__dict__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__getitem__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__ior__', '__iter__', '__le__', '__len__', '__lt__', '__missing__', '__module__', '__ne__', '__new__', '__or__', '__reduce__', '__reduce_ex__', '__repr__', '__reversed__', '__ror__', '__setattr__', '__setitem__', '__sizeof__', '__str__', '__subclasshook__', '__weakref__', 'clear', 'copy', 'fromkeys', 'get', 'items', 'keys', 'pop', 'popitem', 'setdefault', 'update', 'values']
+```
+opt.keys()
+```
+dict_keys(['name', 'phase', 'gpu_ids', 'path', 'datasets', 'model', 'train', 'wandb', 'distributed', 'log_wandb_ckpt', 'log_eval', 'enable_wandb'])
+
+
+
+
+
+
+
+
+
+
+
 
 
 
