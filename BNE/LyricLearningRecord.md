@@ -129,6 +129,7 @@ opt.keys()
 ```
 dict_keys(['name', 'phase', 'gpu_ids', 'path', 'datasets', 'model', 'train', 'wandb', 'distributed', 'log_wandb_ckpt', 'log_eval', 'enable_wandb'])
 
+回到terminal主界面： crtl+D
 
 
 
