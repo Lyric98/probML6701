@@ -91,6 +91,13 @@ python sr.py -p train -c config/sr_wave_64_512CBIS.json -enable_wandb -log_wandb
 ```
 
 # Debug必备
+
+## 申请cpu/gpu 
+```
+bash srun_cpu.sh
+bash srun_gpu.sh
+```
+
 ## Ginsburg
 打断点 会在断点的地方停下
 ```
