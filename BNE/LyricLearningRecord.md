@@ -85,6 +85,7 @@ python run_base.py --data_training bayesian_optimization --model mlp_fsvi --arch
 conda activate diva
 fish
 squeue -u $USER
+squeue --user=yl5465
 sbatch train.sh
 bash srun_gpu.sh # request interactive gpu for debug
 python sr.py -p train -c config/sr_wave_64_512CBIS.json -enable_wandb -log_wandb_ckpt -log_eval    #在interactive下call python
