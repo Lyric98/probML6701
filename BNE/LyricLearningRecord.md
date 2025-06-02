@@ -141,9 +141,19 @@ dict_keys(['name', 'phase', 'gpu_ids', 'path', 'datasets', 'model', 'train', 'wa
 
 
 
-
-
-
+# Building R Packages
+```
+usethis::use_package("")
+devtools::load_all()
+```
+Version Control (commit)
+```
+usethis::use_git()
+```
+Check packages:
+```
+devtools::check()
+```
 
 
 
