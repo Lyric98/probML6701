@@ -144,6 +144,10 @@ dict_keys(['name', 'phase', 'gpu_ids', 'path', 'datasets', 'model', 'train', 'wa
 # Building R Packages
 ```
 usethis::use_package("")
+```
+创建 Rfunction：
+```
+usethis::use_r("square_val.R")
 devtools::load_all()
 ```
 Version Control (commit)
