@@ -159,7 +159,9 @@ Check packages:
 devtools::check()
 ```
 Git version control: https://rfortherestofus.com/2021/02/how-to-use-git-github-with-r 
-
+Rstudio Connect Token
+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
+Personal access tokens (classic)
 
 
 
