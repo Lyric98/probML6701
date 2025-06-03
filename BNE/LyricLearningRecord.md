@@ -158,7 +158,7 @@ Check packages:
 ```
 devtools::check()
 ```
-
+Git version control: https://rfortherestofus.com/2021/02/how-to-use-git-github-with-r 
 
 
 
